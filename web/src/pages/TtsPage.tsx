@@ -1,4 +1,29 @@
 ﻿import { useState } from 'react';
+import { 
+  Box, 
+  TextField, 
+  Button, 
+  Typography, 
+  Paper, 
+  FormControl, 
+  InputLabel, 
+  Select, 
+  MenuItem,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Chip,
+  Alert,
+  CircularProgress,
+  Divider
+} from '@mui/material';
+import {
+  ExpandMore as ExpandMoreIcon,
+  RecordVoiceOver as VoiceIcon,
+  Settings as SettingsIcon,
+  Download as DownloadIcon,
+  AudioFile as AudioFileIcon
+} from '@mui/icons-material';
 import { loadConfig } from '../lib/storage';
 import { createApiClient } from '../lib/api';
 import type { BackendConfig, TTSResponse } from '../lib/types';
@@ -10,6 +35,17 @@ export default function TtsPage() {
   const [language, setLanguage] = useState('');
   const [format, setFormat] = useState<'wav' | 'mp4' | 'ogg_opus'>('wav');
   const [audioPrompt, setAudioPrompt] = useState<File | null>(null);
+  const [outputPath, setOutputPath] = useState('');
+  
+  // 高级设置参数
+  const [device, setDevice] = useState('auto');
+  const [repetitionPenalty, setRepetitionPenalty] = useState(1.2);
+  const [temperature, setTemperature] = useState(0.8);
+  const [topP, setTopP] = useState(0.95);
+  const [topK, setTopK] = useState(1000);
+  const [exaggeration, setExaggeration] = useState(0.0);
+  const [cfgWeight, setCfgWeight] = useState(0.0);
+  
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TTSResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +67,8 @@ export default function TtsPage() {
         setResult(resp);
         setError(null);
       }
-    } catch (e: any) {
-      setError(e.message || '请求失败');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '请求失败');
     } finally {
       setLoading(false);
     }
@@ -41,70 +77,266 @@ export default function TtsPage() {
   const audioUrl = result ? cfg.baseUrl.replace(/\/$/, '') + result.audio_url : null;
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto' }}>
-      <h2>文字转语音 (TTS)</h2>
-      <div style={{ marginBottom: 12 }}>
-        <label>文本内容：</label>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          style={{ width: '100%', marginTop: 4 }}
-        />
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <label>参考音频（音色克隆，可选）：</label>
-        <input
-          type="file"
-          accept="audio/*"
-          onChange={(e) => setAudioPrompt(e.target.files?.[0] || null)}
-          style={{ marginTop: 4 }}
-        />
-        {audioPrompt && <p style={{ fontSize: '0.8em', color: '#666' }}>{audioPrompt.name}</p>}
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <label>模型：</label>
-        <select value={model} onChange={(e) => setModel(e.target.value as any)} style={{ marginLeft: 8 }}>
-          <option value="multilingual">multilingual</option>
-          <option value="turbo">turbo</option>
-          <option value="standard">standard</option>
-        </select>
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <label>语言（可选）：</label>
-        <input
-          type="text"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          placeholder="例如 zh"
-          style={{ marginLeft: 8 }}
-        />
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <label>输出格式：</label>
-        <select value={format} onChange={(e) => setFormat(e.target.value as any)} style={{ marginLeft: 8 }}>
-          <option value="wav">wav</option>
-          <option value="mp4">mp4</option>
-          <option value="ogg_opus">ogg_opus</option>
-        </select>
-      </div>
-      <button onClick={handleSynthesize} disabled={loading}>
-        {loading ? '合成中...' : '合成语音'}
-      </button>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <VoiceIcon color="primary" />
+        文字转语音 (TTS)
+      </Typography>
 
-      {error && <p style={{ color: 'red', marginTop: 12 }}>错误：{error}</p>}
-      {result && audioUrl && (
-        <div style={{ marginTop: 12, background: '#f0f8ff', padding: 12, borderRadius: 4 }}>
-          <p>合成成功！</p>
-          <audio controls src={audioUrl} style={{ width: '100%', marginTop: 8 }} />
-          <p>
-            <a href={audioUrl} download={`tts.${format}`} style={{ marginRight: 12 }}>
-              下载
-            </a>
-          </p>
-          <pre style={{ fontSize: '0.8em', color: '#666' }}>{JSON.stringify(result.meta, null, 2)}</pre>
-        </div>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+        {/* 左侧：输入和常规设置 */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              文本输入
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={6}
+              label="请输入要合成的文本"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              variant="outlined"
+              margin="normal"
+            />
+          </Paper>
+
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SettingsIcon />
+              常规设置
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>模型</InputLabel>
+                  <Select
+                    value={model}
+                    onChange={(e) => setModel(e.target.value as 'multilingual' | 'turbo' | 'standard')}
+                    label="模型"
+                  >
+                    <MenuItem value="multilingual">multilingual</MenuItem>
+                    <MenuItem value="turbo">turbo</MenuItem>
+                    <MenuItem value="standard">standard</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <TextField
+                  fullWidth
+                  label="语言代码"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  placeholder="例如 zh"
+                  margin="normal"
+                />
+              </Box>
+            </Box>
+            
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <TextField
+                  fullWidth
+                  label="语速 (CFG权重)"
+                  type="number"
+                  value={cfgWeight}
+                  onChange={(e) => setCfgWeight(parseFloat(e.target.value))}
+                  inputProps={{ min: 0, max: 2, step: 0.1 }}
+                  margin="normal"
+                />
+              </Box>
+              
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>输出格式</InputLabel>
+                  <Select
+                    value={format}
+                    onChange={(e) => setFormat(e.target.value as 'wav' | 'mp4' | 'ogg_opus')}
+                    label="输出格式"
+                  >
+                    <MenuItem value="wav">wav</MenuItem>
+                    <MenuItem value="mp4">mp4</MenuItem>
+                    <MenuItem value="ogg_opus">ogg_opus</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+            
+            <TextField
+              fullWidth
+              label="输出文件路径"
+              value={outputPath}
+              onChange={(e) => setOutputPath(e.target.value)}
+              placeholder="例如 output.wav"
+              margin="normal"
+              sx={{ mb: 2 }}
+            />
+
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<AudioFileIcon />}
+                sx={{ mr: 2 }}
+              >
+                选择参考音频（音色克隆）
+                <input
+                  type="file"
+                  accept="audio/*"
+                  hidden
+                  onChange={(e) => setAudioPrompt(e.target.files?.[0] || null)}
+                />
+              </Button>
+              {audioPrompt && (
+                <Chip 
+                  label={audioPrompt.name} 
+                  color="primary" 
+                  variant="outlined"
+                  onDelete={() => setAudioPrompt(null)}
+                />
+              )}
+            </Box>
+          </Paper>
+        </Box>
+
+        {/* 右侧：高级设置 */}
+        <Box sx={{ width: { xs: '100%', md: '350px' } }}>
+          <Paper sx={{ p: 3 }}>
+            <Accordion defaultExpanded={false}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <SettingsIcon />
+                  高级设置
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>推理设备</InputLabel>
+                    <Select
+                      value={device}
+                      onChange={(e) => setDevice(e.target.value)}
+                      label="推理设备"
+                    >
+                      <MenuItem value="auto">auto</MenuItem>
+                      <MenuItem value="cpu">cpu</MenuItem>
+                      <MenuItem value="cuda">cuda</MenuItem>
+                    </Select>
+                  </FormControl>
+                  
+                  <TextField
+                    fullWidth
+                    label="重复惩罚系数"
+                    type="number"
+                    value={repetitionPenalty}
+                    onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))}
+                    inputProps={{ min: 0.5, max: 2, step: 0.1 }}
+                    margin="normal"
+                  />
+                  
+                  <TextField
+                    fullWidth
+                    label="采样温度"
+                    type="number"
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    inputProps={{ min: 0.1, max: 2, step: 0.1 }}
+                    margin="normal"
+                  />
+                  
+                  <TextField
+                    fullWidth
+                    label="核采样概率阈值"
+                    type="number"
+                    value={topP}
+                    onChange={(e) => setTopP(parseFloat(e.target.value))}
+                    inputProps={{ min: 0.1, max: 1, step: 0.05 }}
+                    margin="normal"
+                  />
+                  
+                  <TextField
+                    fullWidth
+                    label="最高K个候选token"
+                    type="number"
+                    value={topK}
+                    onChange={(e) => setTopK(parseInt(e.target.value))}
+                    inputProps={{ min: 1, max: 2000, step: 50 }}
+                    margin="normal"
+                  />
+                  
+                  <TextField
+                    fullWidth
+                    label="夸张度系数"
+                    type="number"
+                    value={exaggeration}
+                    onChange={(e) => setExaggeration(parseFloat(e.target.value))}
+                    inputProps={{ min: 0, max: 1, step: 0.1 }}
+                    margin="normal"
+                  />
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          </Paper>
+        </Box>
+      </Box>
+
+      {/* 执行按钮 */}
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={handleSynthesize}
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} /> : <VoiceIcon />}
+          sx={{ minWidth: 200 }}
+        >
+          {loading ? '合成中...' : '合成语音'}
+        </Button>
+      </Box>
+
+      {/* 错误信息 */}
+      {error && (
+        <Alert severity="error" sx={{ mt: 3 }}>
+          {error}
+        </Alert>
       )}
-    </div>
+
+      {/* 结果显示 */}
+      {result && audioUrl && (
+        <Paper sx={{ mt: 3, p: 3, bgcolor: 'success.light' }}>
+          <Typography variant="h6" gutterBottom color="success.contrastText">
+            合成成功！
+          </Typography>
+          
+          <Divider sx={{ my: 2 }} />
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <audio controls src={audioUrl} style={{ flex: 1 }} />
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              href={audioUrl}
+              download={`tts.${format}`}
+            >
+              下载
+            </Button>
+          </Box>
+          
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>详细信息</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <pre style={{ fontSize: '0.8em', overflow: 'auto' }}>
+                {JSON.stringify(result.meta, null, 2)}
+              </pre>
+            </AccordionDetails>
+          </Accordion>
+        </Paper>
+      )}
+    </Box>
   );
 }

@@ -20,7 +20,7 @@ def get_auth_credentials(
     cfg: Annotated[dict, Depends(get_current_config)],
 ):
     """鉴权依赖。"""
-    if cfg["auth"]["mode"] == "none":
+    if cfg.auth.mode == "none":
         return None
     if not credentials or not credentials.credentials:
         raise HTTPException(
@@ -28,7 +28,7 @@ def get_auth_credentials(
             detail="API Key 缺失",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if credentials.credentials not in cfg["auth"]["api_keys"]:
+    if credentials.credentials not in cfg.auth.api_keys:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API Key 无效",
