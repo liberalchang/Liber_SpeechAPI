@@ -1,0 +1,48 @@
+[project]
+name = "liber-speech"
+version = "0.1.0"
+description = "ASR(Whisper) + TTS(Chatterbox) service with API and CLI"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2.6",
+  "python-dotenv>=1.0",
+  "typer>=0.12",
+  "rich>=13.7",
+  "transformers>=4.40",
+  "accelerate>=0.27",
+  "torch",
+  "torchaudio",
+  "chatterbox-tts",
+  "setuptools>=81.0.0",
+]
+
+[project.optional-dependencies]
+api = [
+  "fastapi",
+  "uvicorn[standard]",
+]
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/liber_speech"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/README.md",
+  "/LICENSE",
+  "/docs",
+]
+
+[project.scripts]
+liber-speech = "liber_speech.cli.app:app"
+
+# ====================== ✅ UV 国内源配置（已加好）======================
+[tool.uv]
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
