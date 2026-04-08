@@ -110,6 +110,26 @@ export default function TtsPage() {
 
   const audioUrl = result ? cfg.baseUrl.replace(/\/$/, '') + result.audio_url : null;
 
+  async function handleDownload() {
+    if (!audioUrl) return;
+    try {
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `tts.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('下载失败:', err);
+      setError('下载音频文件失败');
+    }
+  }
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
       <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -342,8 +362,7 @@ export default function TtsPage() {
             <Button
               variant="contained"
               startIcon={<DownloadIcon />}
-              href={audioUrl}
-              download={`tts.${format}`}
+              onClick={handleDownload}
             >
               下载
             </Button>
