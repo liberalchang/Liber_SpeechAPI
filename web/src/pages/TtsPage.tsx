@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   TextField, 
@@ -35,7 +35,6 @@ export default function TtsPage() {
   const [language, setLanguage] = useState('');
   const [format, setFormat] = useState<'wav' | 'mp4' | 'ogg_opus'>('wav');
   const [audioPrompt, setAudioPrompt] = useState<File | null>(null);
-  const [outputPath, setOutputPath] = useState('');
   
   // 高级设置参数
   const [device, setDevice] = useState('auto');
@@ -75,7 +74,6 @@ export default function TtsPage() {
         if (ttsDefaults.top_k) setTopK(ttsDefaults.top_k);
         if (ttsDefaults.exaggeration) setExaggeration(ttsDefaults.exaggeration);
         if (ttsDefaults.cfg_weight) setCfgWeight(ttsDefaults.cfg_weight);
-        if (ttsDefaults.output_path) setOutputPath(ttsDefaults.output_path);
         
         console.log('已从后端加载TTS默认参数:', defaultParams);
       } catch (error) {
@@ -200,16 +198,6 @@ export default function TtsPage() {
                 </FormControl>
               </Box>
             </Box>
-            
-            <TextField
-              fullWidth
-              label="输出文件路径"
-              value={outputPath}
-              onChange={(e) => setOutputPath(e.target.value)}
-              placeholder="例如 output.wav"
-              margin="normal"
-              sx={{ mb: 2 }}
-            />
 
             <Box sx={{ mt: 2 }}>
               <Button

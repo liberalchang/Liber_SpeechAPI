@@ -43,7 +43,6 @@ export default function AsrPage() {
   const [language, setLanguage] = useState('');
   const [task, setTask] = useState<'transcribe' | 'translate'>('transcribe');
   const [timestamps, setTimestamps] = useState<'chunk' | 'word'>('chunk');
-  const [outputPath, setOutputPath] = useState('');
   
   // 高级设置参数
   const [device, setDevice] = useState('auto');
@@ -86,7 +85,6 @@ export default function AsrPage() {
         if (asrDefaults.num_speakers) setNumSpeakers(asrDefaults.num_speakers);
         if (asrDefaults.min_speakers) setMinSpeakers(asrDefaults.min_speakers);
         if (asrDefaults.max_speakers) setMaxSpeakers(asrDefaults.max_speakers);
-        if (asrDefaults.transcript_path) setOutputPath(asrDefaults.transcript_path);
         
         console.log('已从后端加载默认参数:', defaultParams);
       } catch (error) {
@@ -255,19 +253,6 @@ export default function AsrPage() {
                     <MenuItem value="word">word（词级）</MenuItem>
                   </Select>
                 </FormControl>
-              </Box>
-            </Box>
-            
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <TextField
-                  fullWidth
-                  label="输出文件路径"
-                  value={outputPath}
-                  onChange={(e) => setOutputPath(e.target.value)}
-                  placeholder="例如 output.json"
-                  margin="normal"
-                />
               </Box>
             </Box>
           </Paper>

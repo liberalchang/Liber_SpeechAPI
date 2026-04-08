@@ -93,7 +93,7 @@ export default function SettingsPage() {
       </Typography>
 
       <Grid container spacing={4}>
-        <Grid size={{ xs: 12, md: 7 }}>
+        <Grid item xs={12} md={7}>
           <Paper sx={{ p: 4 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
               后端 API 配置
@@ -169,7 +169,7 @@ export default function SettingsPage() {
           </Paper>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 5 }}>
+        <Grid item xs={12} md={5}>
           <Card sx={{ height: '100%' }}>
             <CardHeader 
               title="服务状态" 
