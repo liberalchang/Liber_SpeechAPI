@@ -49,6 +49,7 @@ def save_ogg_opus(out_path: Path, sr: int, wav) -> None:
         out_path,
         "libopus",
         [
+            "-f", "ogg", # 新增这一行，强制指定输出为OGG容器
             "-c:a",
             "libopus",
             "-b:a",
@@ -64,7 +65,7 @@ def save_ogg_opus(out_path: Path, sr: int, wav) -> None:
             "-ac",
             "1",
             "-af",
-            "loudnorm=I=-16:TP=-1.5:LRA=11:dual_mono=true:offset=0", # 修改后
+            "loudnorm=I=-16:TP=-1.5:LRA=11:dual_mono=true:offset=0",
         ],
     )
     tmp_wav.unlink()
