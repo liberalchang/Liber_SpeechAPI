@@ -38,7 +38,7 @@
         "results_ttl_hours": 24
     },
     "global": {
-        "hf_cache_dir": "~/.cache/huggingface/hub",
+        "hf_cache_dir": "~/.cache/huggingface",
         "log_level": "INFO",
         "max_workers": 4
     }

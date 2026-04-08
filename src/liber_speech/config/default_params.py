@@ -73,7 +73,7 @@ def get_fallback_defaults() -> Dict[str, Any]:
             "results_ttl_hours": 24
         },
         "global": {
-            "hf_cache_dir": os.path.expanduser("~/.cache/huggingface/hub"),
+            "hf_cache_dir": os.path.expanduser("~/.cache/huggingface"),
             "log_level": "INFO",
             "max_workers": 4
         }
