@@ -64,7 +64,7 @@ def save_ogg_opus(out_path: Path, sr: int, wav) -> None:
             "-ac",
             "1",
             "-af",
-            "loudnorm=I=-16:TP=-1.5:LRA=11",
+            "loudnorm=I=-16:TP=-1.5:LRA=11:dual_mono=true:offset=0", # 修改后
         ],
     )
     tmp_wav.unlink()
