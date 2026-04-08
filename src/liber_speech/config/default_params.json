@@ -1,0 +1,45 @@
+{
+    "asr": {
+        "model": "openai/whisper-large-v3",
+        "device": "auto",
+        "language": "zh",
+        "task": "transcribe",
+        "timestamp": "chunk",
+        "batch_size": 24,
+        "flash": false,
+        "hf_token": null,
+        "diarization_model": "pyannote/speaker-diarization-3.1",
+        "num_speakers": null,
+        "min_speakers": null,
+        "max_speakers": null,
+        "transcript_path": "output.json"
+    },
+    "tts": {
+        "model": "multilingual",
+        "device": "auto",
+        "language": "zh",
+        "format": "wav",
+        "repetition_penalty": 1.8,
+        "temperature": 0.65,
+        "top_p": 0.85,
+        "top_k": 100,
+        "norm_loudness": true,
+        "exaggeration": 0.25,
+        "cfg_weight": 0.3,
+        "audio_prompt_path": null,
+        "output_path": "output.wav"
+    },
+    "api": {
+        "host": "127.0.0.1",
+        "port": 8000,
+        "auth_mode": "api_key",
+        "api_keys": [],
+        "results_dir": "results",
+        "results_ttl_hours": 24
+    },
+    "global": {
+        "hf_cache_dir": "./models",
+        "log_level": "INFO",
+        "max_workers": 4
+    }
+}
