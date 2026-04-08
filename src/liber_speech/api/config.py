@@ -47,6 +47,10 @@ def _try_load_dotenv() -> None:
     _DOTENV_LOADED = True
 
 
+# 尽早加载 .env：让 HF_ENDPOINT / 代理等变量在应用启动与模型预热前生效
+_try_load_dotenv()
+
+
 class AuthConfig(BaseModel):
     """鉴权配置。"""
 

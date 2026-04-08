@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { 
   Box, 
   TextField, 
@@ -26,7 +26,7 @@ import {
 } from '@mui/icons-material';
 import { loadConfig } from '../lib/storage';
 import { createApiClient } from '../lib/api';
-import type { BackendConfig, TTSResponse } from '../lib/types';
+import type { BackendConfig, TTSResponse, DefaultParams } from '../lib/types';
 
 export default function TtsPage() {
   const [cfg] = useState<BackendConfig>(loadConfig());
@@ -49,6 +49,42 @@ export default function TtsPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TTSResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // 页面加载时获取后端默认参数
+  useEffect(() => {
+    const loadDefaultParams = async () => {
+      try {
+        const api = createApiClient(cfg);
+        const response = await api.getDefaultParams();
+        if ('error' in response) {
+          console.error('获取默认参数失败:', response.error);
+          return;
+        }
+        
+        const defaultParams = response as DefaultParams;
+        const ttsDefaults = defaultParams.tts;
+        
+        // 更新表单默认值
+        if (ttsDefaults.model) setModel(ttsDefaults.model as 'multilingual' | 'turbo' | 'standard');
+        if (ttsDefaults.language) setLanguage(ttsDefaults.language);
+        if (ttsDefaults.format) setFormat(ttsDefaults.format as 'wav' | 'mp4' | 'ogg_opus');
+        if (ttsDefaults.device) setDevice(ttsDefaults.device);
+        if (ttsDefaults.repetition_penalty) setRepetitionPenalty(ttsDefaults.repetition_penalty);
+        if (ttsDefaults.temperature) setTemperature(ttsDefaults.temperature);
+        if (ttsDefaults.top_p) setTopP(ttsDefaults.top_p);
+        if (ttsDefaults.top_k) setTopK(ttsDefaults.top_k);
+        if (ttsDefaults.exaggeration) setExaggeration(ttsDefaults.exaggeration);
+        if (ttsDefaults.cfg_weight) setCfgWeight(ttsDefaults.cfg_weight);
+        if (ttsDefaults.output_path) setOutputPath(ttsDefaults.output_path);
+        
+        console.log('已从后端加载TTS默认参数:', defaultParams);
+      } catch (error) {
+        console.error('加载默认参数时出错:', error);
+      }
+    };
+
+    loadDefaultParams();
+  }, [cfg]);
 
   async function handleSynthesize() {
     if (!text.trim()) {

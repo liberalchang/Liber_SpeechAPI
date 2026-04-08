@@ -5,6 +5,13 @@ export interface BackendConfig {
   token: string;
 }
 
+export interface DefaultParams {
+  asr: Record<string, any>;
+  tts: Record<string, any>;
+  api: Record<string, any>;
+  global: Record<string, any>;
+}
+
 export interface HealthResponse {
   status: string;
   version: string;
@@ -34,4 +41,8 @@ export interface TTSResponse {
 export interface ErrorResponse {
   error: string;
   code: number;
+}
+
+export interface DefaultParamsResponse {
+  data: DefaultParams;
 }

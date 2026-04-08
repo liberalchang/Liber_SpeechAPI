@@ -1,28 +1,23 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 import logging
 import tempfile
-import os
-from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from ..engines import ASREngine, ASROptions, TTSEngine, TTSOptions
 from .config import load_config
-from .deps import get_auth_credentials, get_current_config
+from ..config.default_params import get_asr_defaults, get_tts_defaults, load_default_params
+from .deps import get_auth_credentials
 from .models import (
-    ASRRequest,
     ASRResponse,
-    ErrorResponse,
     HealthResponse,
     TaskStatusResponse,
     TaskSubmitResponse,
-    TTSRequest,
     TTSResponse,
 )
 
@@ -40,26 +35,36 @@ router = APIRouter()
 _asr_engine: ASREngine | None = None
 _tts_engine: TTSEngine | None = None
 
+def _norm_optional_str(value: str | None) -> str | None:
+    if value is None:
+        return None
+    v = value.strip()
+    return v if v else None
 
-def get_asr_engine() -> ASREngine:
+def get_asr_engine(options: ASROptions | None = None) -> ASREngine:
     global _asr_engine
     if _asr_engine is None:
-        _asr_engine = ASREngine()
+        _asr_engine = ASREngine(options=options)
+        return _asr_engine
+
+    if options is not None and getattr(_asr_engine, "_options", None) != options:
+        _asr_engine = ASREngine(options=options)
     return _asr_engine
 
-
-def get_tts_engine() -> TTSEngine:
+def get_tts_engine(options: TTSOptions | None = None) -> TTSEngine:
     global _tts_engine
     if _tts_engine is None:
-        _tts_engine = TTSEngine()
-    return _tts_engine
+        _tts_engine = TTSEngine(options=options)
+        return _tts_engine
 
+    if options is not None and _tts_engine.options != options:
+        _tts_engine = TTSEngine(options=options)
+    return _tts_engine
 
 @router.get("/health", response_model=HealthResponse)
 async def health():
     """健康检查。"""
     logger.info("收到健康检查请求")
-    cfg = load_config()
     asr_ready = _asr_engine is not None
     tts_ready = _tts_engine is not None
     logger.info(f"ASR 就绪状态: {asr_ready}, TTS 就绪状态: {tts_ready}")
@@ -69,7 +74,6 @@ async def health():
         asr_ready=asr_ready,
         tts_ready=tts_ready,
     )
-
 
 @router.post("/warmup")
 async def warmup(
@@ -85,6 +89,12 @@ async def warmup(
     logger.info("TTS 引擎初始化完成")
     return {"status": "warmed up"}
 
+@router.get("/default-params")
+async def default_params(
+    _: Annotated[str | None, Depends(get_auth_credentials)],
+):
+    """获取后端默认参数。"""
+    return load_default_params()
 
 # ASR 同步接口
 @router.post("/asr/transcribe", response_model=ASRResponse)
@@ -93,12 +103,22 @@ async def transcribe(
     file: UploadFile | None = File(None),
     url: str | None = Form(None),
     language: str | None = Form(None),
-    task: str = Form("transcribe"),
-    timestamps: str = Form("chunk"),
+    task: str | None = Form(None),
+    timestamps: str | None = Form(None),
 ):
     """ASR 转录（同步）。"""
     logger.info("收到 ASR 转录请求")
-    logger.info(f"参数: file={file.filename if file else None}, url={url}, language={language}, task={task}, timestamps={timestamps}")
+
+    asr_defaults = get_asr_defaults()
+    resolved_language = _norm_optional_str(language) or _norm_optional_str(asr_defaults.get("language"))
+    resolved_task = _norm_optional_str(task) or _norm_optional_str(asr_defaults.get("task")) or "transcribe"
+    resolved_timestamps = (
+        _norm_optional_str(timestamps) or _norm_optional_str(asr_defaults.get("timestamp")) or "chunk"
+    )
+
+    logger.info(
+        f"参数: file={file.filename if file else None}, url={url}, language={resolved_language}, task={resolved_task}, timestamps={resolved_timestamps}"
+    )
     
     if not file and not url:
         logger.error("请求错误：必须提供 file 或 url")
@@ -118,8 +138,8 @@ async def transcribe(
 
     try:
         logger.info("开始 ASR 转录...")
-        engine = get_asr_engine()
-        opts = ASROptions(language=language, task=task, timestamps=timestamps)
+        opts = ASROptions(task=resolved_task, language=resolved_language, timestamps=resolved_timestamps)
+        engine = get_asr_engine(options=opts)
         # 简化：直接使用全局引擎，暂不按请求重建
         # TODO: 支持按请求参数动态重建引擎
         result = engine.transcribe(input_path)
@@ -133,23 +153,58 @@ async def transcribe(
             Path(input_path).unlink(missing_ok=True)
             logger.info(f"临时文件已删除: {input_path}")
 
-
 # TTS 同步接口
 @router.post("/tts/synthesize", response_model=TTSResponse)
 async def synthesize(
     _: Annotated[str | None, Depends(get_auth_credentials)],
     text: str = Form(...),
-    model: str = Form("multilingual"),
+    model: str | None = Form(None),
     language: str | None = Form(None),
-    format: str = Form("wav"),
+    format: str | None = Form(None),
+    repetition_penalty: float | None = Form(None),
+    temperature: float | None = Form(None),
+    top_p: float | None = Form(None),
+    top_k: int | None = Form(None),
+    norm_loudness: bool | None = Form(None),
+    exaggeration: float | None = Form(None),
+    cfg_weight: float | None = Form(None),
     audio_prompt: UploadFile | None = File(None),
 ):
     """TTS 合成（同步）。"""
     logger.info("收到 TTS 合成请求")
-    logger.info(f"参数: text={text[:50]}..., model={model}, language={language}, format={format}")
-    
-    engine = get_tts_engine()
-    opts = TTSOptions(model=model, language_id=language)
+
+    tts_defaults = get_tts_defaults()
+    resolved_model = _norm_optional_str(model) or _norm_optional_str(tts_defaults.get("model")) or "multilingual"
+    resolved_language = _norm_optional_str(language) or _norm_optional_str(tts_defaults.get("language"))
+    resolved_format = _norm_optional_str(format) or _norm_optional_str(tts_defaults.get("format")) or "wav"
+
+    resolved_repetition_penalty = (
+        repetition_penalty if repetition_penalty is not None else tts_defaults.get("repetition_penalty")
+    )
+    resolved_temperature = temperature if temperature is not None else tts_defaults.get("temperature")
+    resolved_top_p = top_p if top_p is not None else tts_defaults.get("top_p")
+    resolved_top_k = top_k if top_k is not None else tts_defaults.get("top_k")
+    resolved_norm_loudness = norm_loudness if norm_loudness is not None else tts_defaults.get("norm_loudness")
+    resolved_exaggeration = exaggeration if exaggeration is not None else tts_defaults.get("exaggeration")
+    resolved_cfg_weight = cfg_weight if cfg_weight is not None else tts_defaults.get("cfg_weight")
+
+    logger.info(
+        f"参数: text={text[:50]}..., model={resolved_model}, language={resolved_language}, format={resolved_format}"
+    )
+
+    generate_params = {
+        "repetition_penalty": resolved_repetition_penalty,
+        "temperature": resolved_temperature,
+        "top_p": resolved_top_p,
+        "top_k": resolved_top_k,
+        "norm_loudness": resolved_norm_loudness,
+        "exaggeration": resolved_exaggeration,
+        "cfg_weight": resolved_cfg_weight,
+    }
+    generate_params = {k: v for k, v in generate_params.items() if v is not None}
+
+    opts = TTSOptions(model=resolved_model, language_id=resolved_language, generate_params=generate_params)
+    engine = get_tts_engine(options=opts)
     # 简化：直接使用全局引擎
     # TODO: 支持按请求参数动态重建引擎
     audio_prompt_path = None
@@ -170,27 +225,39 @@ async def synthesize(
         cfg = load_config()
         out_dir = Path(cfg.results.dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_name = f"{uuid.uuid4().hex}.{format}"
+        out_name = f"{uuid.uuid4().hex}.{resolved_format}"
         out_path = out_dir / out_name
         logger.info(f"保存音频文件到: {out_path}")
         
-        if format == "wav":
+        if resolved_format == "wav":
             from ..engines.io_utils import save_wav
             save_wav(out_path, sr, wav)
-        elif format == "mp4":
+        elif resolved_format == "mp4":
             from ..engines.io_utils import save_mp4
             save_mp4(out_path, sr, wav)
-        elif format in {"ogg_opus", "ogg"}:
+        elif resolved_format in {"ogg_opus", "ogg"}:
             from ..engines.io_utils import save_ogg_opus
             save_ogg_opus(out_path, sr, wav)
         else:
-            logger.error(f"不支持的音频格式: {format}")
-            raise HTTPException(status_code=400, detail=f"不支持的格式: {format}")
+            logger.error(f"不支持的音频格式: {resolved_format}")
+            raise HTTPException(status_code=400, detail=f"不支持的格式: {resolved_format}")
 
         # 简化：直接返回静态文件 URL，实际部署需配合静态文件服务
         audio_url = f"/api/v1/results/{out_name}"
         logger.info(f"TTS 合成完成，音频 URL: {audio_url}")
-        return TTSResponse(audio_url=audio_url, meta={"format": format, "sample_rate": sr})
+        return TTSResponse(audio_url=audio_url, meta={"format": resolved_format, "sample_rate": sr})
+    except TypeError as e:
+        msg = str(e)
+        logger.error(f"TTS 合成失败: {msg}")
+        if "language_id" in msg:
+            raise HTTPException(status_code=400, detail="multilingual 模型需要 language 参数（如 zh/en ）")
+        raise
+    except ValueError as e:
+        msg = str(e)
+        logger.error(f"TTS 合成失败: {msg}")
+        if "language" in msg or "language_id" in msg:
+            raise HTTPException(status_code=400, detail="multilingual 模型需要 language 参数（如 zh/en ）")
+        raise
     except Exception as e:
         logger.error(f"TTS 合成失败: {str(e)}")
         raise

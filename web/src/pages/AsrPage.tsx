@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   TextField, 
@@ -33,7 +33,7 @@ import {
 } from '@mui/icons-material';
 import { loadConfig } from '../lib/storage';
 import { createApiClient } from '../lib/api';
-import type { BackendConfig, ASRResponse } from '../lib/types';
+import type { BackendConfig, ASRResponse, DefaultParams } from '../lib/types';
 
 export default function AsrPage() {
   const [cfg] = useState<BackendConfig>(loadConfig());
@@ -58,6 +58,44 @@ export default function AsrPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ASRResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // 页面加载时获取后端默认参数
+  useEffect(() => {
+    const loadDefaultParams = async () => {
+      try {
+        const api = createApiClient(cfg);
+        const response = await api.getDefaultParams();
+        if ('error' in response) {
+          console.error('获取默认参数失败:', response.error);
+          return;
+        }
+        
+        const defaultParams = response as DefaultParams;
+        const asrDefaults = defaultParams.asr;
+        
+        // 更新表单默认值
+        if (asrDefaults.model) setModel(asrDefaults.model);
+        if (asrDefaults.language) setLanguage(asrDefaults.language);
+        if (asrDefaults.task) setTask(asrDefaults.task as 'transcribe' | 'translate');
+        if (asrDefaults.timestamp) setTimestamps(asrDefaults.timestamp as 'chunk' | 'word');
+        if (asrDefaults.device) setDevice(asrDefaults.device);
+        if (asrDefaults.batch_size) setBatchSize(asrDefaults.batch_size);
+        if (asrDefaults.flash !== undefined) setFlash(asrDefaults.flash);
+        if (asrDefaults.hf_token) setHfToken(asrDefaults.hf_token);
+        if (asrDefaults.diarization_model) setDiarizationModel(asrDefaults.diarization_model);
+        if (asrDefaults.num_speakers) setNumSpeakers(asrDefaults.num_speakers);
+        if (asrDefaults.min_speakers) setMinSpeakers(asrDefaults.min_speakers);
+        if (asrDefaults.max_speakers) setMaxSpeakers(asrDefaults.max_speakers);
+        if (asrDefaults.transcript_path) setOutputPath(asrDefaults.transcript_path);
+        
+        console.log('已从后端加载默认参数:', defaultParams);
+      } catch (error) {
+        console.error('加载默认参数时出错:', error);
+      }
+    };
+
+    loadDefaultParams();
+  }, [cfg]);
 
   async function handleTranscribe() {
     if (!file && !url.trim()) {

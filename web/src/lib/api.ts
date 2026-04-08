@@ -1,4 +1,4 @@
-import type { BackendConfig, HealthResponse, ASRResponse, TTSResponse, ErrorResponse } from "./types";
+import type { BackendConfig, HealthResponse, ASRResponse, TTSResponse, ErrorResponse, DefaultParams } from "./types";
 
 export class ApiClient {
   private cfg: BackendConfig;
@@ -53,6 +53,16 @@ export class ApiClient {
     });
     const result = await res.json();
     console.log("前端: 预热响应", result);
+    return result;
+  }
+
+  async getDefaultParams(): Promise<DefaultParams | ErrorResponse> {
+    console.log("前端: 发送获取默认参数请求");
+    const res = await fetch(this.getFullUrl("/default-params"), {
+      headers: this.headers(false),
+    });
+    const result = await res.json();
+    console.log("前端: 默认参数响应", result);
     return result;
   }
 

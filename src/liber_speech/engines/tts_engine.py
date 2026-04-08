@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import glob
 import json
 import os
+import inspect
+from typing import Any
 
 import torch
 
@@ -17,6 +19,7 @@ class TTSOptions:
 
     model: str = "multilingual"  # turbo/standard/multilingual
     language_id: str | None = None
+    generate_params: dict[str, Any] | None = None
 
 
 class TTSEngine:
@@ -106,6 +109,10 @@ class TTSEngine:
     def device(self) -> str:
         return self._device_spec.device
 
+    @property
+    def options(self) -> TTSOptions:
+        return self._options
+
     def load(self) -> None:
         """懒加载模型。"""
 
@@ -191,18 +198,35 @@ class TTSEngine:
         if self._model is None:
             raise RuntimeError(f"TTS 模型未正确加载，模型类型: {self._options.model}")
 
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if audio_prompt_path:
             kwargs["audio_prompt_path"] = audio_prompt_path
 
-        if self._options.model == "multilingual" and self._options.language_id:
+        if self._options.model == "multilingual":
+            if not self._options.language_id:
+                raise ValueError("multilingual 模型需要 language_id")
             kwargs["language_id"] = self._options.language_id
+
+        if self._options.generate_params:
+            kwargs.update(self._options.generate_params)
 
         # 确保模型有 generate 方法
         if not hasattr(self._model, 'generate') or not callable(getattr(self._model, 'generate')):
             raise RuntimeError(f"TTS 模型缺少 generate 方法: {type(self._model)}")
 
-        wav = self._model.generate(text, **kwargs)
+        filtered_kwargs: dict[str, Any] = {}
+        try:
+            sig = inspect.signature(self._model.generate)
+            params = sig.parameters
+            accepts_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+            if accepts_var_kw:
+                filtered_kwargs = kwargs
+            else:
+                filtered_kwargs = {k: v for k, v in kwargs.items() if k in params}
+        except Exception:
+            filtered_kwargs = kwargs
+
+        wav = self._model.generate(text, **filtered_kwargs)
         
         # 处理张量维度：如果是3D张量，压缩到2D
         if hasattr(wav, 'dim') and wav.dim() == 3:
