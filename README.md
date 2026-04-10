@@ -1,6 +1,6 @@
 # Liber Speech API
 
-> ASR (Whisper) + TTS (Chatterbox) 服务，提供本地 CLI 与远程 API 双模式。
+> ASR (Whisper) + TTS (Chatterbox) 服务，提供本地 CLI 与远程 API 双模式。[项目地址](https://github.com/liberalchang/Liber_SpeechAPI)
 
 ## 特性
 
